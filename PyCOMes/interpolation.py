@@ -1,5 +1,6 @@
 from numba import jit
 import numpy as np
+from scipy import RegularGridInterpolator as RGI
 from numba.targets.rangeobj import range_iter_len
 
 OUT_OF_EDGES=-1
@@ -98,6 +99,29 @@ def interpolate_field(p, coords, field_components):
         
 	return C
 
+@jit(cache=True)
+def regular_grid(coords, field_components):
+	
+	dimension=len(coords)
+	lenx=len(coords[0])
+	leny=len(coords[1])
+	if dimension==3:
+		lenz=len(coords[2])
+	if dimension==2:
+		Ex_tmp=np.reshape(field_components[0], (lenx,leny))
+		Ex=RGI(coords, Ex_tmp.T)
+		Ey_tmp=np.reshape(field_components[1], (lenx,leny))
+		Ey=RGI(coords, Ey_tmp.T)
+		return Ex, Ey
+	if dimension==3:
+		Ex_tmp=np.reshape(field_components[0], (lenx,leny,lenz))
+		Ex=RGI(coords, Ex_tmp.T)
+		Ey_tmp=np.reshape(field_components[1], (lenx,leny,lenz))
+		Ey=RGI(coords, Ey_tmp.T)
+		Ez_tmp=np.reshape(field_components[2], (lenx,leny,lenz))
+		Ez=RGI(coords, Ez_tmp.T)
+		return Ex, Ey, Ez
+
 
 @jit(cache=True)
 def is_inside(p, edges):
@@ -110,23 +134,41 @@ def is_inside(p, edges):
 
 
 @jit(cache=True)
-def trajectory_line(p, coords, field_components, dn, edges, plot=False, print_point=False):
+def trajectory_line(p, coords, field_components, dn, edges, plot=False, print_point=False, RGI=True):
         
 	length=0
 	x_tmp=[p[0]]
 	y_tmp=[p[1]]
 		
-	while is_inside(p, edges):
-		E=np.array(interpolate_field(p, coords, field_components))
-		dp=-dn*E/np.linalg.norm(E)
-		length+=dn
-		p=p+dp
-		if plot:
-			x_tmp.append(p[0])
-			y_tmp.append(p[1])
-		if print_point:
-			print(p)
+	if not RGI:
+		while is_inside(p, edges):
+			E=np.array(interpolate_field(p, coords, field_components))
+			dp=-dn*E/np.linalg.norm(E)
+			length+=dn
+			p=p+dp
+			if plot:
+				x_tmp.append(p[0])
+				y_tmp.append(p[1])
+			if print_point:
+				print(p)
 
-	if plot:
-		return length, np.array(x_tmp), np.array(y_tmp)
-	return length
+		if plot:
+			return length, np.array(x_tmp), np.array(y_tmp)
+		return length
+	else:
+		Ex,Ey,Ez=RGI(coords, field_components)
+		while is_inside(p,edges):
+			E=np.array(Ex(p), Ey(p), Ez(p))
+			dp=-dn*E/np.linalg.norm(E)
+			length+=dn
+			p=p+dp
+			if plot:
+				x_tmp.append(p[0])
+				y_tmp.append(p[1])
+			if print_point:
+				print(p)
+
+		if plot:
+			return length, np.array(x_tmp), np.array(y_tmp)
+		return length
+
