@@ -1,6 +1,7 @@
 from numba import jit
 import numpy as np
 from numba.targets.rangeobj import range_iter_len
+import sys
 
 OUT_OF_EDGES=-1
 

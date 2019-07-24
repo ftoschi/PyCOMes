@@ -60,10 +60,13 @@ def make_head(file,skip_rows=8):
                 dim=int(line.split()[-1])
         head=f.readline()
         f.close()
-    fields=read_params(file,skip_rows).keys()
+    fields_params=read_params(file,skip_rows)
     var=[v for v in read_vars(file,skip_rows).keys()]
+    if fields_params==None:
+        return var
     head=head.split(' ')
     head=np.array([h.replace(',','') for h in head if '=' in h])
+    fields=read_params(file,skip_rows).keys()
     head=np.reshape(head, (len(head)//len(fields), len(fields)))
     skip=len(var)-dim if var else dim
     head=head[::skip]
@@ -97,7 +100,7 @@ def read_vars(file,skip_rows=8):
     coordinates=head[:dim]
     for c in coordinates:
         variables[c]=len_unit
-    for i in range(0,len(head[dim:]),2):
+    for i in range(0,len(head[dim:])):
         if '.' not in head[dim:][i]:
             continue
         v=head[dim:][i].split('.')[-1]
