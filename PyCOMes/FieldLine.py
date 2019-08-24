@@ -80,10 +80,6 @@ class FieldLine():
 
 
 	def trajectory(self, dn, diffusion_on=False, print_point=False, plot=False):
-		
-		coords=[self.X, self.Y]
-		if self.dimension==3:
-			coords.append(self.Z)
 
 		E_components=self.field.get_field_components()
 
@@ -92,4 +88,4 @@ class FieldLine():
 		except:
 			unit=self.field.vars['x']
 		
-		return trajectory_line(self.p, np.array(coords), np.array(E_components), dn, self.edges, diffusion_on=diffusion_on, units=unit, plot=plot, print_point=print_point)
+		return trajectory_line(self.p, self.X, self.Y, np.array(E_components), dn, self.edges, diffusion_on=diffusion_on, units=unit, print_point=print_point)
