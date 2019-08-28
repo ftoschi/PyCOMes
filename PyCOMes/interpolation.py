@@ -3,29 +3,36 @@ import numpy as np
 from numba.targets.rangeobj import range_iter_len
 import sys
 
-OUT_OF_EDGES=-1
+@jit(nopython=True, nogil=True, cache=True)
+def digitize(p, X):
+    
+	i=0
+	for x in X:
+		if p>=x:
+			i=i+1
+		else:
+			return i
+	return i
+        
+@jit(nopython=True, nogil=True, cache=True)
+def closest_point_grid(p, X, Y):
 
-@jit(cache=True)
-def closest_point_grid(p, coords):
+	length=np.zeros(2, dtype=np.int32)
+	length[0]=len(X)
+	length[1]=len(Y)
 
-	indeces=[]
-	indeces.append(np.digitize(p[0], coords[0]))
-	indeces.append(np.digitize(p[1], coords[1]))
-	if len(coords)==3:
-		indeces.append(np.digitize(p[2], coords[2]))
-	indeces=np.array(indeces)
+	indeces=np.zeros(2, dtype=np.int32)
+	indeces[0]=np.int32(digitize(p[0], X))
+	indeces[1]=np.int32(digitize(p[1], Y))
 
-	length=np.array([len(coords[0]), len(coords[1])]) if len(coords)==2 else np.array([len(coords[0]), len(coords[1]), len(coords[2])])
 	for i in indeces:
 		if i==0:
-			return OUT_OF_EDGES
+			return np.array([-1,-1,-1,-1], dtype=np.int32)
 	for i in range(len(indeces)):
 		if indeces[i]==length[i]:
-			return OUT_OF_EDGES
+			return np.array([-1,-1,-1,-1], dtype=np.int32)
 
-	return_indeces=[indeces[0]-1, indeces[0], indeces[1]-1, indeces[1]]
-	if len(coords)==3:
-		return_indeces.append([indeces[2]-1, indeces[2]])
+	return_indeces=np.array([indeces[0]-1, indeces[0], indeces[1]-1, indeces[1]], dtype=np.int32)
 	return return_indeces
 
 
@@ -37,25 +44,24 @@ def interpolate_linear(x, x0, x1, f0, f1):
 	return a*x+b
 
 
-@jit(cache=True)
-def interpolate_field(p, coords, field_components):
+@jit(nopython=True, nogil=True, cache=True)
+def interpolate_field(p, X, Y, field_components):
 
-	dimension=len(coords)
-	c_p=closest_point_grid(p, coords)
+	dimension=2
+	c_p=closest_point_grid(p, X, Y)
 
-	if c_p==OUT_OF_EDGES:
-		return c_p
+	if np.all(c_p==np.array([-1,-1,-1,-1], dtype=np.int32)):
+		return np.array([0.,0.], dtype=np.float64)
 	elif dimension==2:
-		xl,xu,yl,yu=c_p
-	elif dimension==3:
-		xl,xu,yl,yu,zl,zu=c_p
+		xl=c_p[0]
+		xu=c_p[1]
+		yl=c_p[2]
+		yu=c_p[3]
 
-	lenx=len(coords[0])
-	leny=len(coords[1])
-	if dimension==3:
-		lenz=len(coords[2])
+	lenx=len(X)
+	leny=len(Y)    
 
-	if dimension==3:
+	"""if dimension==3:
 		Ex,Ey,Ez=field_components
 
 		i=xl+lenx*yl+lenx*leny*zl; LLL=np.array([Ex[i],Ey[i],Ez[i]])
@@ -79,18 +85,20 @@ def interpolate_field(p, coords, field_components):
 		C0=interpolate_linear(p[1],y1,y2,C00,C01)
 		C1=interpolate_linear(p[1],y1,y2,C10,C11)
 
-		C=interpolate_linear(p[2],z1,z2,C0,C1)
+		C=interpolate_linear(p[2],z1,z2,C0,C1)"""
 
-	elif dimension==2:
-		Ex,Ey=field_components
+	if True:
+		pass
+		Ex=field_components[0]
+		Ey=field_components[1]
 
-		LL=np.array([Ex[lenx*yl+xl],Ey[lenx*yl+xl]])
-		UL=np.array([Ex[lenx*yu+xl],Ey[lenx*yu+xl]])
-		UR=np.array([Ex[lenx*yu+xu],Ey[lenx*yu+xu]])
-		LR=np.array([Ex[lenx*yl+xu],Ey[lenx*yl+xu]])
+		LL=np.array([Ex[lenx*yl+xl], Ey[lenx*yl+xl]], dtype=np.float64)
+		UL=np.array([Ex[lenx*yu+xl], Ey[lenx*yu+xl]], dtype=np.float64)
+		UR=np.array([Ex[lenx*yu+xu], Ey[lenx*yu+xu]], dtype=np.float64)
+		LR=np.array([Ex[lenx*yl+xu], Ey[lenx*yl+xu]], dtype=np.float64)
 
-		x1=coords[0][xl]; x2=coords[0][xu]
-		y1=coords[1][yl]; y2=coords[1][yu]
+		x1=X[xl]; x2=X[xu]
+		y1=Y[yl]; y2=Y[yu]
 
 		C0=interpolate_linear(p[0],x1,x2,LL,LR)
 		C1=interpolate_linear(p[0],x1,x2,UL,UR)
@@ -100,7 +108,7 @@ def interpolate_field(p, coords, field_components):
 	return C
 
 
-@jit(cache=True)
+@jit(nopython=True, nogil=True, cache=True)
 def is_inside(p, edges):
 
 	conditions=[p[0]<edges[0], p[0]>edges[1], p[1]<edges[2], p[1]>edges[3]]
@@ -110,29 +118,27 @@ def is_inside(p, edges):
 	return not np.array(conditions).any()
 
 
-@jit(cache=True)
-def trajectory_line(p, coords, field_components, dn, edges, diffusion_on, units, plot=False, print_point=False):
+@jit(nopython=True, nogil=True, cache=True)
+def trajectory_line(p, X, Y, field_components, dn, edges, diffusion_on, units, print_point=False):
 
 	length=0
-	x_tmp=[p[0]]
-	y_tmp=[p[1]]
+	x_tmp=np.array([p[0]])
+	y_tmp=np.array([p[1]])
 
 	while is_inside(p, edges):
-		E=np.array(interpolate_field(p, coords, field_components))
+		E=interpolate_field(p, X, Y, field_components)
 		normE=np.linalg.norm(E)
 		dp=-dn*E/normE
 		if diffusion_on:
-			dp=diffuse(dp, E, units)
-			length+=np.linalg.norm(dp)
+			pass#dp=diffuse(dp, E, units)
+			#length+=np.linalg.norm(dp)
 		else:
 			length+=dn
 		p=p+dp
-		if plot:
-			x_tmp.append(p[0])
-			y_tmp.append(p[1])
+		x_tmp=np.concatenate((x_tmp,np.array([p[0]])))
+		y_tmp=np.concatenate((y_tmp,np.array([p[1]])))
 		if print_point:
 			print(p)
 
-	if plot:
-		return length, np.array(x_tmp), np.array(y_tmp)
-	return length
+	return x_tmp, y_tmp
+

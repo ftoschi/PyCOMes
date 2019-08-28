@@ -94,9 +94,13 @@ class Field():
         if not self._contains_field():
             raise FieldNotFound
         e_field_components=['Ex', 'Ey'] if 'Ex' in self.vars.keys() else ['Er', 'Ez']
-        string_Ex=[i for i in self.head if all(k in i for k in [e_field_components[0]]+self._selected_params_suffix)][0]
+        if self.params==None:
+            string_Ex=e_field_components[0]
+            string_Ey=e_field_components[1]
+        else:
+            string_Ex=[i for i in self.head if all(k in i for k in [e_field_components[0]]+self._selected_params_suffix)][0]
+            string_Ey=[i for i in self.head if all(k in i for k in [e_field_components[1]]+self._selected_params_suffix)][0]
         Ex=self.field[string_Ex]
-        string_Ey=[i for i in self.head if all(k in i for k in [e_field_components[1]]+self._selected_params_suffix)][0]
         Ey=self.field[string_Ey]
         if self.dimension==3:
             e_field_components.append('Ez')
