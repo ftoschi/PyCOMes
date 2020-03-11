@@ -86,7 +86,7 @@ class Field():
         
         if self.dimension==2:
             return all(i in self.vars.keys() for i in ['Ex','Ey']) or all(i in self.vars.keys() for i in ['Er','Ez'])
-        if self.dimension==2:
+        if self.dimension==3:
             return all(i in self.vars.keys() for i in ['Ex','Ey','Ez'])
     
     def get_field_components(self):
@@ -98,15 +98,18 @@ class Field():
             string_Ex=e_field_components[0]
             string_Ey=e_field_components[1]
         else:
-            string_Ex=[i for i in self.head if all(k in i for k in [e_field_components[0]]+self._selected_params_suffix)][0]
-            string_Ey=[i for i in self.head if all(k in i for k in [e_field_components[1]]+self._selected_params_suffix)][0]
+            string_Ex=[i for i in self.head if all(k in i.split(' ') for k in [e_field_components[0]]+self._selected_params_suffix)][0]
+            string_Ey=[i for i in self.head if all(k in i.split(' ') for k in [e_field_components[1]]+self._selected_params_suffix)][0]
         Ex=self.field[string_Ex]
         Ey=self.field[string_Ey]
         if self.dimension==3:
             e_field_components.append('Ez')
-            string_Ez=[i for i in self.head if
-                       all(k in i for k in [e_field_components[2]]+self._selected_params_suffix)][0]
-            Ez=self.field[strin_Ez]
+            if self.params == None:
+                string_Ez = e_field_components[2]
+            else:
+                string_Ez=[i for i in self.head if
+                           all(k in i.split(' ') for k in [e_field_components[2]]+self._selected_params_suffix)][0]
+            Ez=self.field[string_Ez]
             return Ex, Ey, Ez
         return Ex, Ey
         

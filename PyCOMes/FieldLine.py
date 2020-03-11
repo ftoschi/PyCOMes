@@ -16,6 +16,7 @@ class FieldLine():
 
 		self.field=field
 		self.dimension=field.dimension
+		self.E_components=np.array(self.field.get_field_components())
 		if self.dimension==3 and not all(i in self.field.vars.keys() for i in ['Ex', 'Ey', 'Ez']):
 			raise FieldNotFound
 		elif self.dimension==2 and (not all(i in self.field.vars.keys() for i in ['Ex', 'Ey']) and not all(i in self.field.vars.keys() for i in ['Er', 'Ez'])):
@@ -74,18 +75,20 @@ class FieldLine():
 		if self.dimension==3:
 			coords.append(self.Z)
 
-		E_components=self.field.get_field_components()
-
-		return interpolate(p, np.array(coords), np.array(E_components))
+		return interpolate(p, np.array(coords), self.E_components)
 
 
 	def trajectory(self, dn, diffusion_on=False, print_point=False, plot=False):
 
-		E_components=self.field.get_field_components()
+		edges = np.array(self.edges, dtype=np.float64)
+		p0 = self.p0.copy()
 
 		try:
 			unit=self.field.vars['z']
 		except:
 			unit=self.field.vars['x']
 		
-		return trajectory_line(self.p, self.X, self.Y, np.array(E_components), dn, self.edges, diffusion_on=diffusion_on, units=unit, print_point=print_point)
+		if self.dimension == 3:
+			return trajectory_line_3D(p0, self.X, self.Y, self.Z, self.E_components, dn, self.edges, diffusion_on=diffusion_on, units=unit, print_point=print_point)
+		else:
+			return trajectory_line(p0, self.X, self.Y, self.E_components, dn, edges, diffusion_on=diffusion_on, units=unit, print_point=print_point)
