@@ -172,6 +172,8 @@ def trajectory_line(p, X, Y, field_components, dn, edges, diffusion_on, units, p
 
 	while is_inside(p, edges):
 		E=interpolate_field(p, X, Y, field_components)
+		if np.isnan(E[0]):
+			break
 		normE=np.linalg.norm(E)
 		dp=-dn*E/normE
 		if diffusion_on:

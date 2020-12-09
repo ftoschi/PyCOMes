@@ -101,11 +101,11 @@ def read_vars(file,skip_rows=8):
     for c in coordinates:
         variables[c]=len_unit
     for i in range(0,len(head[dim:])):
-        if '.' not in head[dim:][i]:
+        if '.' not in head[dim:][i] and head[dim:][i]!='V':
             continue
-        v=head[dim:][i].split('.')[-1]
+        v=head[dim:][i].split('.')[-1] if head[dim:][i]!='V' else 'V'
         if v in variables:
-            break
+            continue
         else:
             unit=head[dim:][i+1].replace(')','')
             unit=unit.replace('(','')
