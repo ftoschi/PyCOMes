@@ -1,51 +1,70 @@
 import numpy as np
-from numba import jit, jitclass
-import pandas as pd
+from enum import Enum, unique
+import os
+import re
 
-def num(s):
-    try:
-        k=int(s)
-    except:
-        k=float(s)
-    return k
+
+@unique
+class FileType(Enum):
+    TXT = 0
+    PICKLE = 1
+    NPY = 2
+
 
 class WrongDimension(Exception):
     pass
 
-def read_params(file, skip_rows=8):
 
+def num(s):
+    try:
+        k = int(s)
+    except:
+        k = float(s)
+    return k
+
+
+def get_extension(file_name):
+
+    extension = os.path.splitext(file_name)[1][1:]
+    known_extension = {'text': ['txt', 'csv'], 'pickle': ['pkl', 'pickle', 'p'], 'numpy': ['npy']}
+    if extension in known_extension['text']:
+        return FileType.TXT
+    elif extension in known_extension['pickle']:
+        return FileType.PICKLE
+    elif extension in known_extension['numpy']:
+        return FileType.NPY
+    else:
+        raise TypeError(f"file type not recognized, known extensions are {known_extension}.")
+
+
+def read_params_txt(file, skip_rows=8):
     """
         Returning the sweep parameters for a COMSOL simulation exported in a text file.
         
         - file: name of the text file;
         - skip_rows: rows to skip with data regarding the simulation.
     """
-        
-    with open(file,'r') as f:
-        for i in range(skip_rows):
-            f.readline()
-        head=f.readline()
-        f.close()
-    head=np.unique(head.split(' '))
-    head=[h.replace(',','') for h in head if '=' in h]
-    if not len(head):
-        return None
-    head_field=[]
-    head_value={}
-    for h in head:
-        h.replace('/n', '')
-        field,value=h.split('=')
-        head_field.append(field)
-        if field not in head_value:
-            head_value[field]=[num(value)]
-        else:
-            if num(value) in head_value[field]:
-                continue
-            head_value[field].append(num(value))
-    return head_value
 
-def make_head(file,skip_rows=8):
-    
+    with open(file, 'r') as f:
+        for l in f:
+            if not l.startswith('%'):
+                break
+            last_line = l
+        f.close()
+    header_elements = re.split('\s{1,100}|,', last_line)
+    reg = re.compile('.*=.*')
+    param_names = tuple(np.unique([i.split('=')[0] for i in list(filter(reg.match, header_elements))]))
+    if not len(param_names):
+        return None
+
+    params = {}
+    for p in param_names:
+        params[p] = np.unique([l.split('=')[-1] for l in header_elements if l.startswith(p+'=')])
+
+    return params
+
+
+def make_head(file, skip_rows=8):
     """
     Returning the head to use when loading the field from the COMSOL output text file.
     
@@ -53,78 +72,72 @@ def make_head(file,skip_rows=8):
     - skip_rows: rows to skip with data regarding the simulation.
     """
 
-    with open(file,'r') as f:
+    with open(file, 'r') as f:
         for i in range(skip_rows):
-            line=f.readline()
+            line = f.readline()
             if 'Dimension' in line:
-                dim=int(line.split()[-1])
-        head=f.readline()
+                dim = int(line.split()[-1])
+        head = f.readline()
         f.close()
-    fields_params=read_params(file,skip_rows)
-    var=[v for v in read_vars(file,skip_rows).keys()]
-    if fields_params==None:
+    fields_params = read_params_txt(file, skip_rows)
+    var = [v for v in read_vars_txt(file, skip_rows).keys()]
+    if fields_params is None:
         return var
-    head=head.split(' ')
-    head=np.array([h.replace(',','') for h in head if '=' in h])
-    fields=read_params(file,skip_rows).keys()
-    head=np.reshape(head, (len(head)//len(fields), len(fields)))
-    skip=len(var)-dim if var else dim
-    head=head[::skip]
-    HEAD=var[:dim]
+    head = head.split(' ')
+    head = np.array([h.replace(',', '') for h in head if '=' in h])
+    fields = read_params_txt(file, skip_rows).keys()
+    head = np.reshape(head, (len(head) // len(fields), len(fields)))
+    skip = len(var) - dim if var else dim
+    head = head[::skip]
+    head_var = var[:dim]
     for h in head:
         for e in var[dim:]:
-            HEAD.append(e+' '+' '.join(h).replace('\n',''))
-    return HEAD
+            head_var.append(e + ' ' + ' '.join(h).replace('\n', ''))
+    return head_var
 
-def read_vars(file,skip_rows=8):
-    
+
+def read_vars_txt(file, skip_rows=8):
     """
     Returning the variables stored in the input txt file from COMSOL (e.g. x, y, z, normE, etc.).
     
     - file: name of the text file;
     - skip_rows: rows to skip with data regarding the simulation.
     """
-    
-    variables={}
-    with open(file,'r') as f:
-        for i in range(skip_rows):
-            line=f.readline()
+
+    variables = {}
+    with open(file, 'r') as f:
+        for line in f:
             if 'Length unit' in line:
-                len_unit=line.split()[-1]
+                len_unit = line.split()[-1]
             if 'Dimension' in line:
-                dim=int(line.split()[-1])
-        head=f.readline()
+                dim = int(line.split()[-1])
+            if not line.startswith('%'):
+                break
+            last_line = line
         f.close()
-    head=head.split()
-    head=[h for h in head if h not in ['%','@'] and '=' not in h and ':' not in h]
-    coordinates=head[:dim]
-    for c in coordinates:
-        variables[c]=len_unit
-    for i in range(0,len(head[dim:])):
-        if '.' not in head[dim:][i] and head[dim:][i]!='V':
-            continue
-        v=head[dim:][i].split('.')[-1] if head[dim:][i]!='V' else 'V'
-        if v in variables:
-            continue
-        else:
-            unit=head[dim:][i+1].replace(')','')
-            unit=unit.replace('(','')
-            variables[v]=unit
+
+    header_elements = re.split('\s{1,100}|,', last_line)
+    coords = header_elements[1:dim+1]
+
+    var_temp = np.unique(re.findall('\w*\s?\(.*?\)', last_line))
+    variables = {c: len_unit for c in coords}
+    variables.update({re.split(' \(', l)[0]: re.split('\(|\)', l)[1] for l in var_temp})
+
     return variables
 
-def read_dimension(file):
-    
+
+def read_dimension_txt(file):
     """
     Returning the dimension of the COMSOL simulation.
     
     - file: name of the text file.
     """
-    
-    with open(file,'r') as f:
+
+    with open(file, 'r') as f:
         while True:
-            line=f.readline()
+            line = f.readline()
             if 'Dimension' in line:
-                dim=int(line.split()[-1])
+                dim = int(line.split()[-1])
                 f.close()
                 break
     return dim

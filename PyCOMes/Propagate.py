@@ -1,8 +1,3 @@
-import numpy as np
-from .utils import *
-from .Field import *
-from .interpolation import *
-from .Model import *
 from .FieldLine import *
 
                     

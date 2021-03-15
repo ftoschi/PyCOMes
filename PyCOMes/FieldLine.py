@@ -1,5 +1,4 @@
 import numpy as np
-from .utils import *
 from .Field import *
 from .interpolation import *
 from .Model import *
@@ -9,7 +8,7 @@ class OutOfEdges(Exception):
 
 class FieldLine():
 
-        def __init__(self, field: Field, edges=[]):
+        def __init__(self, field: Field, edges=None):
 
                 self.field=field
                 self.dimension=field.dimension
@@ -23,7 +22,7 @@ class FieldLine():
                 if self.dimension==3:
                         self.Z=self.field.Z
 
-                if not edges:
+                if edges is None:
                         self.edges=[self.X[0], self.X[-1], self.Y[0], self.Y[-1]]
                         if self.dimension==3:
                                 self.edges+=[self.Z[0], self.Z[-1]]

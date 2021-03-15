@@ -1,8 +1,4 @@
-from numba import jit, boolean
-import numpy as np
-import sys
 from .diffusion import *
-from .utils import *
 
 @jit(nopython = True, nogil = True, cache = True)
 def digitize(p, X):
