@@ -82,7 +82,7 @@ class Field:
         self.selected_params = params
         self._selected_params_suffix = []
         for i in self.params.keys():
-            if not params[i] in self.params[i] and not str(params[i]) in [str(p) for p in self.params[i]]:
+            if not str(params[i]) in [str(p) for p in self.params[i]]:
                 raise InvalidArgument(
                     f"value not accepted for {i} parameter. The accepted values are {list(self.params[i])}.")
             self._selected_params_suffix.append(f'{i}={params[i]}')
@@ -100,9 +100,11 @@ class Field:
         if not self._contains_field():
             raise FieldNotFound
         e_field_components = ['Ex', 'Ey'] if 'Ex' in self.vars.keys() else ['Er', 'Ez']
-        if self.params is None:
+        if len(self.params) == 0:
             string_ex = e_field_components[0]
             string_ey = e_field_components[1]
+        elif len(self.params) != 0 and self.selected_params is None:
+            raise NotImplementedError('parameter not selected.')
         else:
             string_ex = [i for i in self.head if
                          all(k in i.split(' ') for k in [e_field_components[0]] + self._selected_params_suffix)][0]
