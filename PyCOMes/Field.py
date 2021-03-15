@@ -30,6 +30,9 @@ class Field:
             raise InvalidArgument('field should be given as an external file.')
 
         self.load_file()
+        self.selected_params = None
+        self._selected_params_suffix = None
+
         return
 
     def load_txt(self, file_name=None):
@@ -68,13 +71,6 @@ class Field:
             self.Y = np.unique(self.field.y)
             self.Z = np.unique(self.field.z)
 
-    def file_header(self):
-
-        with open(self.file_name, 'r') as f:
-            for i in range(self._skip_rows):
-                print(f.readline())
-        return
-
     def set_parameters(self, params: dict):
 
         if len(params) != len(self.params):
@@ -86,7 +82,7 @@ class Field:
         self.selected_params = params
         self._selected_params_suffix = []
         for i in self.params.keys():
-            if not params[i] in self.params[i] and not params[i] in [str(p) for p in self.params[i]]:
+            if not params[i] in self.params[i] and not str(params[i]) in [str(p) for p in self.params[i]]:
                 raise InvalidArgument(
                     f"value not accepted for {i} parameter. The accepted values are {list(self.params[i])}.")
             self._selected_params_suffix.append(f'{i}={params[i]}')
@@ -125,7 +121,7 @@ class Field:
             return Ex, Ey, Ez
         return Ex, Ey
 
-    def to_pickle(self, path=None):
+    def to_pickle(self, path=None, dtype=np.float32):
 
         if path is None:
             path = self._path
@@ -133,18 +129,15 @@ class Field:
         path = path + '/' if not path.endswith('/') else path
         _file_name = self.file_name.split('/')[-1]
 
-        if file_type == FileType.PICKLE:
-            return
-        elif file_type == FileType.TXT:
-            output = dict(file_name=_file_name.split('.')[0] + '.pkl',
-                          dimension=self.dimension,
-                          params=self.params,
-                          vars=self.vars,
-                          head=self.head,
-                          field=self.field)
-            with open(path + _file_name.split('.')[0] + '.pkl', 'wb') as f:
-                pickle.dump(output, f)
-                f.close()
+        output = dict(file_name=_file_name.split('.')[0] + '.pkl',
+                      dimension=self.dimension,
+                      params=self.params,
+                      vars=self.vars,
+                      head=self.head,
+                      field=self.field.astype(dtype))
+        with open(path + _file_name.split('.')[0] + '.pkl', 'wb') as f:
+            pickle.dump(output, f)
+            f.close()
 
     def load_pickle(self, file_name=None):
 
