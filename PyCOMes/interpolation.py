@@ -154,11 +154,10 @@ def interpolate_field_3D(p, X, Y, Z, Ex, Ey, Ez):
 
 @jit(nopython=True, nogil=True, cache=True)
 def is_inside(p, edges):
-    conditions = [p[0] < edges[0], p[0] > edges[1], p[1] < edges[2], p[1] > edges[3]]
+    conditions = np.array([p[0] < edges[0], p[0] > edges[1], p[1] < edges[2], p[1] > edges[3]], dtype=np.bool8)
     if len(p) == 3:
-        conditions.append(p[2] < edges[4])
-        conditions.append(p[2] > edges[5])
-    return not np.array(conditions).any()
+        conditions = np.append(conditions, np.asarray([p[2] < edges[4], p[2] > edges[5]], dtype=np.bool8))
+    return not conditions.any()
 
 
 @jit(nopython=True, nogil=True, cache=True)
