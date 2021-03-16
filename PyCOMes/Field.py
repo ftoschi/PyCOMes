@@ -100,7 +100,7 @@ class Field:
         if not self._contains_field():
             raise FieldNotFound
         e_field_components = ['Ex', 'Ey'] if 'Ex' in self.vars.keys() else ['Er', 'Ez']
-        if len(self.params) == 0:
+        if self.params is None or len(self.params) == 0:
             string_ex = e_field_components[0]
             string_ey = e_field_components[1]
         elif len(self.params) != 0 and self.selected_params is None:
@@ -127,7 +127,6 @@ class Field:
 
         if path is None:
             path = self._path
-        file_type = get_extension(self.file_name)
         path = path + '/' if not path.endswith('/') else path
         _file_name = self.file_name.split('/')[-1]
 
@@ -143,9 +142,7 @@ class Field:
 
     def load_pickle(self, file_name=None):
 
-        if file_name is None:
-            file_name = self.file_name
-        else:
+        if not file_name is None:
             self.file_name = file_name
         with open(self.file_name, 'rb') as f:
             output = pickle.load(f)

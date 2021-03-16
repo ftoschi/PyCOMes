@@ -1,4 +1,3 @@
-import numpy as np
 from .Field import *
 from .interpolation import *
 from .Model import *
@@ -8,13 +7,15 @@ class OutOfEdges(Exception):
     pass
 
 
-class FieldLine():
+class FieldLine:
 
-    def __init__(self, field: Field, edges=None):
+    def __init__(self, field: Field, edges=None, axisymmetry=True):
 
         self.field = field
         self.dimension = field.dimension
         self.E_components = np.array(self.field.get_field_components())
+        self.axisymmetry = axisymmetry
+        self.diffusion_on = False
         if self.dimension == 3 and not all(i in self.field.vars.keys() for i in ['Ex', 'Ey', 'Ez']):
             raise FieldNotFound
         elif self.dimension == 2 and (not all(i in self.field.vars.keys() for i in ['Ex', 'Ey']) and not all(
@@ -25,11 +26,17 @@ class FieldLine():
         if self.dimension == 3:
             self.Z = np.asarray(self.field.Z)
 
+        self.diff_t = None
+        self.diff_l = None
+        self.drift = None
+
         if edges is None:
             self.edges = np.array([self.X[0], self.X[-1], self.Y[0], self.Y[-1]])
             if self.dimension == 3:
                 self.edges = np.append(self.edges, [self.Z[0], self.Z[-1]])
             self.edges = np.asarray(self.edges)
+        else:
+            self.edges = edges
         return
 
     def set_edges(self, edges):
@@ -39,7 +46,6 @@ class FieldLine():
             self.edges = edges[:self.dimension * 2]
         elif len(edges) < self.dimension * 2:
             self.edges[:self.dimension * 2] = edges
-        return np.array(edges)
 
     def _is_inside(self):
 
@@ -54,8 +60,8 @@ class FieldLine():
 
         if self.dimension != len(p0):
             raise WrongDimension("the initial point does not match the expected dimension.")
-        self.p0 = np.array(p0, )
-        self.p = np.array(p0, )
+        self.p0 = np.array(p0, dtype=np.float64)
+        self.p = np.array(p0, dtype=np.float64)
         return
 
     def closest_point(self):
@@ -79,6 +85,7 @@ class FieldLine():
     def trajectory(self, dn, print_point=False):
 
         p0 = self.p0.copy()
+        dn = np.float64(dn)
 
         if self.dimension == 3:
             return trajectory_line_3D(np.asarray(p0, dtype=np.float64),
@@ -88,8 +95,12 @@ class FieldLine():
                                       np.asarray(self.E_components[0], dtype=np.float64),
                                       np.asarray(self.E_components[1], dtype=np.float64),
                                       np.asarray(self.E_components[2], dtype=np.float64),
-                                      np.float64(dn),
+                                      dn,
                                       np.asarray(self.edges, dtype=np.float64),
+                                      diff_t=self.diff_t,
+                                      diff_l=self.diff_l,
+                                      drift=self.drift,
+                                      diffusion_on=self.diffusion_on,
                                       print_point=print_point)
         else:
             return trajectory_line(np.asarray(p0, dtype=np.float64),
@@ -97,6 +108,11 @@ class FieldLine():
                                    np.asarray(self.Y, dtype=np.float64),
                                    np.asarray(self.E_components[0], dtype=np.float64),
                                    np.asarray(self.E_components[1], dtype=np.float64),
-                                   np.float64(dn),
+                                   dn,
                                    np.asarray(self.edges, dtype=np.float64),
+                                   axisymmetry=self.axisymmetry,
+                                   diff_t=self.diff_t,
+                                   diff_l=self.diff_l,
+                                   drift=self.drift,
+                                   diffuse_on=self.diffusion_on,
                                    print_point=print_point)
