@@ -89,7 +89,7 @@ class FieldLine:
         theta = np.float64(theta)
 
         if self.dimension == 3:
-            return trajectory_line_3D(np.asarray(p0, dtype=np.float64),
+            traj = trajectory_line_3D(np.asarray(p0, dtype=np.float64),
                                       np.asarray(self.X, dtype=np.float64),
                                       np.asarray(self.Y, dtype=np.float64),
                                       np.asarray(self.Z, dtype=np.float64),
@@ -105,7 +105,7 @@ class FieldLine:
                                       theta=theta,
                                       print_point=print_point)
         else:
-            return trajectory_line(np.asarray(p0, dtype=np.float64),
+            traj = trajectory_line(np.asarray(p0, dtype=np.float64),
                                    np.asarray(self.X, dtype=np.float64),
                                    np.asarray(self.Y, dtype=np.float64),
                                    np.asarray(self.E_components[0], dtype=np.float64),
@@ -119,3 +119,7 @@ class FieldLine:
                                    diffuse_on=self.diffusion_on,
                                    theta=theta,
                                    print_point=print_point)
+            if self.axisymmetry:
+                return traj
+            else:
+                return traj[0], traj[2], traj[3]

@@ -166,39 +166,39 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
 
     length = 0.
     time = 0.
+    theta = theta if axisymmetry else 0.
     
-    if axisymmetry and diffuse_on:
+    x_tmp = np.array([p[0] * np.cos(theta)], dtype=np.float64)
+    y_tmp = np.array([p[0] * np.sin(theta)], dtype=np.float64)
+    z_tmp = np.array([p[1]], dtype=np.float64)
+    t_tmp = np.array([0.], dtype=np.float64)
+
+    if axisymmetry:
         p = np.array([p[0] * np.cos(theta), p[0] * np.sin(theta), p[1]],
                      dtype=np.float64)
-
-    x_tmp = np.array([p[0]], dtype=np.float64)
-    y_tmp = np.array([p[1]], dtype=np.float64)
-    z_tmp = np.array([p[2]], dtype=np.float64) if axisymmetry else np.array([-1.], dtype=np.float64)
-    t_tmp = np.array([0.], dtype=np.float64)
 
     if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
         raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
         
-    particle_inside = is_inside(p, edges) if not axisymmetry else \
-                      is_inside(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), edges)
+    particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
 
     while particle_inside:
         
+        E = interpolate_field(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), X, Y, Ex, Ey)
         if axisymmetry:
-            E = interpolate_field(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), X, Y, Ex, Ey)
             E = np.array([E[0] * np.cos(theta), E[0] * np.sin(theta), E[1]], dtype=np.float64)
-        else:
-            E = interpolate_field(p, X, Y, Ex, Ey)
 
         # checking if the field value makes sense
         if np.isnan(E[0]):
             break
+            
+        # if field is null, stop
         normE = np.float64(np.linalg.norm(E))
         if normE == 0.:
             break
 
         # move along E with step size dn
-        dp = np.asarray(-dn * E / normE, dtype=np.float64)
+        dp = np.asarray(- dn * E / normE, dtype=np.float64)
         dt = np.array([0.], dtype=np.float64)
         if diffuse_on:
             p = diffuse(p, dp, E, diff_t, diff_l, drift, dt)
@@ -210,18 +210,20 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
             length = length + dn
             p = p + dp
             
-        x_tmp = np.concatenate((x_tmp, np.array([p[0]], dtype=np.float64)))
-        y_tmp = np.concatenate((y_tmp, np.array([p[1]], dtype=np.float64)))
-        if axisymmetry and diffuse_on:
+        if axisymmetry:
+            x_tmp = np.concatenate((x_tmp, np.array([p[0]], dtype=np.float64)))
+            y_tmp = np.concatenate((y_tmp, np.array([p[1]], dtype=np.float64)))
             z_tmp = np.concatenate((z_tmp, np.array([p[2]], dtype=np.float64)))
         else:
-            z_tmp = np.concatenate((z_tmp, np.array([-1.], dtype=np.float64)))
+            x_tmp = np.concatenate((x_tmp, np.array([p[0] * np.cos(theta)], dtype=np.float64)))
+            y_tmp = np.concatenate((y_tmp, np.array([p[0] * np.sin(theta)], dtype=np.float64)))
+            z_tmp = np.concatenate((z_tmp, np.array([p[1]], dtype=np.float64)))            
+                
         t_tmp = np.concatenate((t_tmp, np.array([time], dtype=np.float64)))
         if print_point:
             print(p, time)
             
-        particle_inside = is_inside(p, edges) if not axisymmetry else \
-                          is_inside(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), edges)
+        particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
 
     return x_tmp, y_tmp, z_tmp, t_tmp
 
