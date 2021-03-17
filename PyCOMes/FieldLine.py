@@ -59,7 +59,7 @@ class FieldLine:
     def set_initial_point(self, p0):
 
         if self.dimension != len(p0):
-            raise WrongDimension("the initial point does not match the expected dimension.")
+            raise WrongDimension(": the initial point does not match the expected dimension.")
         self.p0 = np.array(p0, dtype=np.float64)
         self.p = np.array(p0, dtype=np.float64)
         return
@@ -82,10 +82,11 @@ class FieldLine:
 
         return interpolate(p, np.array(coords), self.E_components)
 
-    def trajectory(self, dn, print_point=False):
+    def trajectory(self, dn, theta=0., print_point=False):
 
         p0 = self.p0.copy()
         dn = np.float64(dn)
+        theta = np.float64(theta)
 
         if self.dimension == 3:
             return trajectory_line_3D(np.asarray(p0, dtype=np.float64),
@@ -101,6 +102,7 @@ class FieldLine:
                                       diff_l=self.diff_l,
                                       drift=self.drift,
                                       diffusion_on=self.diffusion_on,
+                                      theta=theta,
                                       print_point=print_point)
         else:
             return trajectory_line(np.asarray(p0, dtype=np.float64),
@@ -115,4 +117,5 @@ class FieldLine:
                                    diff_l=self.diff_l,
                                    drift=self.drift,
                                    diffuse_on=self.diffusion_on,
+                                   theta=theta,
                                    print_point=print_point)

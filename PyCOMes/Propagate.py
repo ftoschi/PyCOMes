@@ -16,10 +16,11 @@ class Propagate(FieldLine):
 
     def __init__(self, field: Field, diffusion_trans=diffusion_t_LXe,
                  diffusion_long=diffusion_l_LXe, drift=drift_speed_LXe,
-                 edges=None, E_min=0, E_max=200, N=100, axisymmetry=True):
+                 edges=None, E_min=0, E_max=200, N=100, axisymmetry=True,
+                 diffuse_on=True):
 
         super().__init__(field, edges, axisymmetry=axisymmetry)
-        self.diffusion_on = True
+        self.diffusion_on = diffuse_on
         self.E_min = E_min
         self.E_max = E_max
         self.N = N

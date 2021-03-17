@@ -162,20 +162,33 @@ def is_inside(p, edges):
 
 @jit(nopython=True, nogil=True, cache=True)
 def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=None,
-                    diffuse_on=False, axisymmetry=True, print_point=False):
+                    diffuse_on=False, axisymmetry=True, print_point=False, theta=0.):
 
     length = 0.
     time = 0.
+    
+    if axisymmetry and diffuse_on:
+        p = np.array([p[0] * np.cos(theta), p[0] * np.sin(theta), p[1]],
+                     dtype=np.float64)
+
     x_tmp = np.array([p[0]], dtype=np.float64)
     y_tmp = np.array([p[1]], dtype=np.float64)
+    z_tmp = np.array([p[2]], dtype=np.float64) if axisymmetry else np.array([-1.], dtype=np.float64)
     t_tmp = np.array([0.], dtype=np.float64)
-    if axisymmetry:
-        theta_tmp = np.random.uniform(-np.pi, np.pi)
+
     if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
         raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
+        
+    particle_inside = is_inside(p, edges) if not axisymmetry else \
+                      is_inside(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), edges)
 
-    while is_inside(p, edges):
-        E = interpolate_field(p, X, Y, Ex, Ey)
+    while particle_inside:
+        
+        if axisymmetry:
+            E = interpolate_field(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), X, Y, Ex, Ey)
+            E = np.array([E[0] * np.cos(theta), E[0] * np.sin(theta), E[1]], dtype=np.float64)
+        else:
+            E = interpolate_field(p, X, Y, Ex, Ey)
 
         # checking if the field value makes sense
         if np.isnan(E[0]):
@@ -185,30 +198,32 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
             break
 
         # move along E with step size dn
-        dp = -dn * E / normE
+        dp = np.asarray(-dn * E / normE, dtype=np.float64)
         dt = np.array([0.], dtype=np.float64)
         if diffuse_on:
-            if not axisymmetry:
-                p = diffuse(p, dp, E, diff_t, diff_l, drift, dt)
-                length = length + np.sqrt(dp[0] ** 2 + dp[1] ** 2)
-                time += dt[0]
-            else:
-                # as this funciton should handle only 2D, not checking dimensionality
-                p = np.array([p[0] * np.cos(theta_tmp), p[0] * np.sin(theta_tmp), p[1]],
-                             dtype=np.float64)
-                p = diffuse(p, dp, E, diff_t, diff_l, drift, dt)
-                theta_tmp = np.arctan2(p[1], p[0])
-                p = np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64)
+            p = diffuse(p, dp, E, diff_t, diff_l, drift, dt)
+            length = length + np.linalg.norm(dp)
+            if axisymmetry:
+                theta = np.arctan2(p[1], p[0])
+            time = time + dt[0]
         else:
-            length += dn
+            length = length + dn
             p = p + dp
+            
         x_tmp = np.concatenate((x_tmp, np.array([p[0]], dtype=np.float64)))
         y_tmp = np.concatenate((y_tmp, np.array([p[1]], dtype=np.float64)))
+        if axisymmetry and diffuse_on:
+            z_tmp = np.concatenate((z_tmp, np.array([p[2]], dtype=np.float64)))
+        else:
+            z_tmp = np.concatenate((z_tmp, np.array([-1.], dtype=np.float64)))
         t_tmp = np.concatenate((t_tmp, np.array([time], dtype=np.float64)))
         if print_point:
             print(p, time)
+            
+        particle_inside = is_inside(p, edges) if not axisymmetry else \
+                          is_inside(np.array([np.sqrt(p[0]**2 + p[1]**2), p[2]], dtype=np.float64), edges)
 
-    return x_tmp, y_tmp, t_tmp
+    return x_tmp, y_tmp, z_tmp, t_tmp
 
 
 @jit(nopython=True, nogil=True, cache=True)
