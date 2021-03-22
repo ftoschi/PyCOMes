@@ -45,7 +45,7 @@ def diffuse(p, dp, E, diff_t, diff_l, drift, dt):
 
     normE = np.linalg.norm(E)
     Dt = get_value(normE, diff_t[0], diff_t[1])
-    Dl = get_value(normE, diff_l[0], diff_t[1])
+    Dl = get_value(normE, diff_l[0], diff_l[1])
     v = get_value(normE, drift[0], drift[1])
 
     norm_dp = np.linalg.norm(dp)
