@@ -268,9 +268,9 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
             length = length + dn
             p = p + dp
 
-        x_tmp = np.concatenate((x_tmp, np.array([p[0] * np.cos(theta)], dtype=np.float64)))
-        y_tmp = np.concatenate((y_tmp, np.array([p[0] * np.sin(theta)], dtype=np.float64)))
-        z_tmp = np.concatenate((z_tmp, np.array([p[1]], dtype=np.float64)))
+        x_tmp = np.concatenate((x_tmp, np.array([p[0]], dtype=np.float64)))
+        y_tmp = np.concatenate((y_tmp, np.array([p[1]], dtype=np.float64)))
+        z_tmp = np.concatenate((z_tmp, np.array([p[2]], dtype=np.float64)))
         t_tmp = np.concatenate((t_tmp, np.array([time], dtype=np.float64)))
 
         if print_point:
