@@ -102,7 +102,6 @@ class FieldLine:
                                       diff_l=self.diff_l,
                                       drift=self.drift,
                                       diffusion_on=self.diffusion_on,
-                                      theta=theta,
                                       print_point=print_point)
         else:
             traj = trajectory_line(np.asarray(p0, dtype=np.float64),

@@ -229,34 +229,53 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diffusion_on=False, print_point=False):
-    dn = float(dn)
+def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=None, drift=None,
+                       diffusion_on=False, print_point=False):
     length = 0.
     time = 0.
 
-    x_tmp = np.array([p[0]])
-    y_tmp = np.array([p[1]])
-    z_tmp = np.array([p[2]])
+    x_tmp = np.array([p[0]], dtype=np.float64)
+    y_tmp = np.array([p[1]], dtype=np.float64)
+    z_tmp = np.array([p[2]], dtype=np.float64)
+    t_tmp = np.array([0.], dtype=np.float64)
 
-    while is_inside(p, edges):
+    if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
+        raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
+
+    particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
+
+    while particle_inside:
+
         E = interpolate_field_3D(p, X, Y, Z, Ex, Ey, Ez)
+
+        # checking if the field value makes sense
         if np.isnan(E[0]):
             break
-        normE = np.linalg.norm(E)
-        dp = -dn * E / normE
-        if diffusion_on:
-            pass  # dp = diffuse(dp, E, units)
-            # length += np.linalg.norm(dp)
+
+        # if field is null, stop
+        normE = np.float64(np.linalg.norm(E))
+        if normE == 0.:
+            break
+
+        dp = np.asarray(- dn * E / normE, dtype=np.float64)
+        dt = np.array([0.], dtype=np.float64)
+
+        if diffuse_on:
+            p = diffuse(p, dp, E, diff_t, diff_l, drift, dt)
+            length = length + np.linalg.norm(dp)
+            time = time + dt[0]
         else:
-            length += dn
-        p[0] += dp[0]
-        p[1] += dp[1]
-        p[2] += dp[2]
+            length = length + dn
+            p = p + dp
 
-        x_tmp = np.concatenate((x_tmp, np.array([p[0]])))
-        y_tmp = np.concatenate((y_tmp, np.array([p[1]])))
-        z_tmp = np.concatenate((z_tmp, np.array([p[2]])))
+        x_tmp = np.concatenate((x_tmp, np.array([p[0] * np.cos(theta)], dtype=np.float64)))
+        y_tmp = np.concatenate((y_tmp, np.array([p[0] * np.sin(theta)], dtype=np.float64)))
+        z_tmp = np.concatenate((z_tmp, np.array([p[1]], dtype=np.float64)))
+        t_tmp = np.concatenate((t_tmp, np.array([time], dtype=np.float64)))
+
         if print_point:
-            print(p)
+            print(p, time)
 
-    return x_tmp, y_tmp, z_tmp
+        particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
+
+    return x_tmp, y_tmp, z_tmp, t_tmp
