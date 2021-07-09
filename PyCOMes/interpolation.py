@@ -230,7 +230,7 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
 
 @jit(nopython=True, nogil=True, cache=True)
 def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=None, drift=None,
-                       diffusion_on=False, print_point=False):
+                       diffuse_on=False, print_point=False):
     length = 0.
     time = 0.
 
