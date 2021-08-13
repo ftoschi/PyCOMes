@@ -1,90 +1,128 @@
-import numpy as np
-from .utils import *
 from .Field import *
 from .interpolation import *
 from .Model import *
 
+
 class OutOfEdges(Exception):
-        pass
-
-class FieldLine():
-
-        def __init__(self, field: Field, edges=[]):
-
-                self.field=field
-                self.dimension=field.dimension
-                self.E_components=np.array(self.field.get_field_components())
-                if self.dimension==3 and not all(i in self.field.vars.keys() for i in ['Ex', 'Ey', 'Ez']):
-                        raise FieldNotFound
-                elif self.dimension==2 and (not all(i in self.field.vars.keys() for i in ['Ex', 'Ey']) and not all(i in self.field.vars.keys() for i in ['Er', 'Ez'])):
-                        raise FieldNotFound
-                self.X=self.field.X
-                self.Y=self.field.Y
-                if self.dimension==3:
-                        self.Z=self.field.Z
-
-                if not edges:
-                        self.edges=[self.X[0], self.X[-1], self.Y[0], self.Y[-1]]
-                        if self.dimension==3:
-                                self.edges+=[self.Z[0], self.Z[-1]]
-                return
-
-        def set_edges(self, edges):
-
-                edges=list(edges)
-                if len(edges)>=self.dimension*2:
-                        self.edges=edges[:self.dimension*2]
-                elif len(edges)<self.dimension*2:
-                        self.edges[:self.dimension*2]=edges
-                return edges
-
-        def _is_inside(self):
-
-                conditions=[self.p[0]<self.edges[0], self.p[0]>self.edges[1], self.p[1]<self.edges[2], self.p[1]>self.edges[3]]
-                if self.dimension==3:
-                        conditions.append(self.p[2]<self.edges[4])
-                        conditions.append(self.p[2]>self.edges[5])
-                return not any(conditions)
-
-        def set_initial_point(self, p0):
-
-                if self.dimension!=len(p0):
-                        raise WrongDimension("the initial point does not match the expected dimension.")
-                self.p0=np.array(p0, dtype=np.float64)
-                self.p=np.array(p0, dtype=np.float64)
-                return
-                             
-        def closest_point(self):
-
-                coords=[self.X, self.Y]
-                if self.dimension==3:
-                        coords.append(self.Z)
-                return closest_point_grid(self.p, np.array(coords))
+    pass
 
 
-        def interpolate(self, params=False):
+class FieldLine:
 
-                if params:
-                        self.field.set_parameters(params)
+    def __init__(self, field: Field, edges=None, axisymmetry=True):
 
-                coords=[self.X, self.Y]
-                if self.dimension==3:
-                        coords.append(self.Z)
+        self.field = field
+        self.dimension = field.dimension
+        self.E_components = np.array(self.field.get_field_components())
+        self.axisymmetry = axisymmetry
+        self.diffusion_on = False
+        if self.dimension == 3 and not all(i in self.field.vars.keys() for i in ['Ex', 'Ey', 'Ez']):
+            raise FieldNotFound
+        elif self.dimension == 2 and (not all(i in self.field.vars.keys() for i in ['Ex', 'Ey']) and not all(
+                i in self.field.vars.keys() for i in ['Er', 'Ez'])):
+            raise FieldNotFound
+        self.X = np.asarray(self.field.X)
+        self.Y = np.asarray(self.field.Y)
+        if self.dimension == 3:
+            self.Z = np.asarray(self.field.Z)
 
-                return interpolate(p, np.array(coords), self.E_components)
+        self.diff_t = None
+        self.diff_l = None
+        self.drift = None
 
+        if edges is None:
+            self.edges = np.array([self.X[0], self.X[-1], self.Y[0], self.Y[-1]])
+            if self.dimension == 3:
+                self.edges = np.append(self.edges, [self.Z[0], self.Z[-1]])
+            self.edges = np.asarray(self.edges)
+        else:
+            self.edges = edges
+        return
 
-        def trajectory(self, dn, diffusion_on=False, print_point=False):
+    def set_edges(self, edges):
 
-                edges = np.array(self.edges, dtype=np.float64)
-                p0 = self.p0.copy()
+        edges = list(edges)
+        if len(edges) >= self.dimension * 2:
+            self.edges = edges[:self.dimension * 2]
+        elif len(edges) < self.dimension * 2:
+            self.edges[:self.dimension * 2] = edges
 
-                try:
-                        unit=self.field.vars['z']
-                except:
-                        unit=self.field.vars['x']
-                
-                if self.dimension == 3:
-                        return trajectory_line_3D(p0, self.X, self.Y, self.Z, self.E_components, dn, edges, print_point=print_point)
-                else:
-                        return trajectory_line(p0, self.X, self.Y, self.E_components, dn, edges, print_point=print_point)
+    def _is_inside(self):
+
+        conditions = [self.p[0] < self.edges[0], self.p[0] > self.edges[1], self.p[1] < self.edges[2],
+                      self.p[1] > self.edges[3]]
+        if self.dimension == 3:
+            conditions.append(self.p[2] < self.edges[4])
+            conditions.append(self.p[2] > self.edges[5])
+        return not any(conditions)
+
+    def set_initial_point(self, p0):
+
+        if self.dimension != len(p0):
+            raise WrongDimension(": the initial point does not match the expected dimension.")
+        self.p0 = np.array(p0, dtype=np.float64)
+        self.p = np.array(p0, dtype=np.float64)
+        return
+
+    def closest_point(self):
+
+        coords = [self.X, self.Y]
+        if self.dimension == 3:
+            coords.append(self.Z)
+        return closest_point_grid(self.p, np.array(coords))
+
+    def interpolate(self, params=None):
+
+        if not params:
+            self.field.set_parameters(params)
+
+        coords = [self.X, self.Y]
+        if self.dimension == 3:
+            coords.append(self.Z)
+
+        return interpolate(p, np.array(coords), self.E_components)
+
+    def trajectory(self, dn, theta=0., print_point=False, step_limit=None):
+
+        p0 = self.p0.copy()
+        dn = np.float64(dn)
+        theta = np.float64(theta)
+
+        if self.dimension == 3:
+            traj = trajectory_line_3D(np.asarray(p0, dtype=np.float64),
+                                      np.asarray(self.X, dtype=np.float64),
+                                      np.asarray(self.Y, dtype=np.float64),
+                                      np.asarray(self.Z, dtype=np.float64),
+                                      np.asarray(self.E_components[0], dtype=np.float64),
+                                      np.asarray(self.E_components[1], dtype=np.float64),
+                                      np.asarray(self.E_components[2], dtype=np.float64),
+                                      dn,
+                                      np.asarray(self.edges, dtype=np.float64),
+                                      diff_t=self.diff_t,
+                                      diff_l=self.diff_l,
+                                      drift=self.drift,
+                                      diffuse_on=self.diffusion_on,
+                                      print_point=print_point,
+                                      step_limit=step_limit)
+
+            return traj
+        else:
+            traj = trajectory_line(np.asarray(p0, dtype=np.float64),
+                                   np.asarray(self.X, dtype=np.float64),
+                                   np.asarray(self.Y, dtype=np.float64),
+                                   np.asarray(self.E_components[0], dtype=np.float64),
+                                   np.asarray(self.E_components[1], dtype=np.float64),
+                                   dn,
+                                   np.asarray(self.edges, dtype=np.float64),
+                                   axisymmetry=self.axisymmetry,
+                                   diff_t=self.diff_t,
+                                   diff_l=self.diff_l,
+                                   drift=self.drift,
+                                   diffuse_on=self.diffusion_on,
+                                   theta=theta,
+                                   print_point=print_point,
+                                   step_limit=step_limit)
+            if self.axisymmetry:
+                return traj
+            else:
+                return traj[0], traj[2], traj[3]
