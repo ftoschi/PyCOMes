@@ -162,10 +162,11 @@ def is_inside(p, edges):
 
 @jit(nopython=True, nogil=True, cache=True)
 def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=None,
-                    diffuse_on=False, axisymmetry=True, print_point=False, theta=0.):
+                    diffuse_on=False, axisymmetry=True, print_point=False, theta=0., step_limit=None):
 
     length = 0.
     time = 0.
+    n_step = 0
     theta = theta if axisymmetry else 0.
     
     x_tmp = np.array([p[0] * np.cos(theta)], dtype=np.float64)
@@ -176,6 +177,9 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
     if axisymmetry:
         p = np.array([p[0] * np.cos(theta), p[0] * np.sin(theta), p[1]],
                      dtype=np.float64)
+    
+    if step_limit is None:
+        step_limit = np.inf
 
     if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
         raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
@@ -183,6 +187,9 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
     particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
 
     while particle_inside:
+        
+        if n_step > step_limit:
+            break
         
         E = interpolate_field(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), X, Y, Ex, Ey)
         if axisymmetry:
@@ -224,15 +231,17 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
             print(p, time)
             
         particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
+        n_step = n_step + 1
 
     return x_tmp, y_tmp, z_tmp, t_tmp
 
 
 @jit(nopython=True, nogil=True, cache=True)
 def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=None, drift=None,
-                       diffuse_on=False, print_point=False):
+                       diffuse_on=False, print_point=False, step_limit=None):
     length = 0.
     time = 0.
+    n_step = 0
 
     x_tmp = np.array([p[0]], dtype=np.float64)
     y_tmp = np.array([p[1]], dtype=np.float64)
@@ -241,10 +250,15 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
 
     if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
         raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
+    if step_limit is None:
+        step_limit = np.inf
 
     particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
 
     while particle_inside:
+        
+        if n_step > step_limit:
+            break
 
         E = interpolate_field_3D(p, X, Y, Z, Ex, Ey, Ez)
 
@@ -277,5 +291,6 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
             print(p, time)
 
         particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
+        n_step = n_step + 1
 
     return x_tmp, y_tmp, z_tmp, t_tmp

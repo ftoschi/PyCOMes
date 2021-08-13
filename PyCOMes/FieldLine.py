@@ -82,7 +82,7 @@ class FieldLine:
 
         return interpolate(p, np.array(coords), self.E_components)
 
-    def trajectory(self, dn, theta=0., print_point=False):
+    def trajectory(self, dn, theta=0., print_point=False, step_limit=None):
 
         p0 = self.p0.copy()
         dn = np.float64(dn)
@@ -102,7 +102,8 @@ class FieldLine:
                                       diff_l=self.diff_l,
                                       drift=self.drift,
                                       diffuse_on=self.diffusion_on,
-                                      print_point=print_point)
+                                      print_point=print_point,
+                                      step_limit=step_limit)
 
             return traj
         else:
@@ -119,7 +120,8 @@ class FieldLine:
                                    drift=self.drift,
                                    diffuse_on=self.diffusion_on,
                                    theta=theta,
-                                   print_point=print_point)
+                                   print_point=print_point,
+                                   step_limit=step_limit)
             if self.axisymmetry:
                 return traj
             else:
