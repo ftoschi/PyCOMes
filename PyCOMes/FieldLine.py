@@ -38,6 +38,10 @@ class FieldLine:
         else:
             self.edges = edges
         return
+    
+    def __call__(self, dn, theta=0., print_point=False, step_limit=None):
+        
+        return self.trajectory(dn, theta=0., print_point=False, step_limit=None)
 
     def set_edges(self, edges):
 
@@ -63,24 +67,6 @@ class FieldLine:
         self.p0 = np.array(p0, dtype=np.float64)
         self.p = np.array(p0, dtype=np.float64)
         return
-
-    def closest_point(self):
-
-        coords = [self.X, self.Y]
-        if self.dimension == 3:
-            coords.append(self.Z)
-        return closest_point_grid(self.p, np.array(coords))
-
-    def interpolate(self, params=None):
-
-        if not params:
-            self.field.set_parameters(params)
-
-        coords = [self.X, self.Y]
-        if self.dimension == 3:
-            coords.append(self.Z)
-
-        return interpolate(p, np.array(coords), self.E_components)
 
     def trajectory(self, dn, theta=0., print_point=False, step_limit=None):
 

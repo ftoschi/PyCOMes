@@ -1,4 +1,5 @@
 from .utils import *
+from .interpolation import *
 import pandas as pd
 import pickle
 
@@ -32,8 +33,33 @@ class Field:
         self.load_file()
         self.selected_params = None
         self._selected_params_suffix = None
-
+        
+        if self.params is None:
+            self.E_components = self.get_field_components()
+            
         return
+    
+    def __call__(self, p, params=None):
+        
+        if not params is None:
+            if not isinstance(params, dict):
+                raise InvalidArgument("the parameter selection should be a dictionary.")
+            self.set_parameters(params)
+                        
+        if self.dimension == 2:
+            return interpolate_field(np.asarray(p, dtype=np.float64),
+                                     np.asarray(self.X, dtype=np.float64),
+                                     np.asarray(self.Y, dtype=np.float64),
+                                     np.asarray(self.E_components[0], dtype=np.float64),
+                                     np.asarray(self.E_components[1], dtype=np.float64))
+        else:
+            return interpolate_field_3D(np.asarray(p, dtype=np.float64),
+                                        np.asarray(self.X, dtype=np.float64),
+                                        np.asarray(self.Y, dtype=np.float64),
+                                        np.asarray(self.Z, dtype=np.float64),
+                                        np.asarray(self.E_components[0], dtype=np.float64),
+                                        np.asarray(self.E_components[1], dtype=np.float64),
+                                        np.asarray(self.E_components[2], dtype=np.float64))
 
     def load_txt(self, file_name=None):
 
@@ -86,6 +112,7 @@ class Field:
                 raise InvalidArgument(
                     f"value not accepted for {i} parameter. The accepted values are {list(self.params[i])}.")
             self._selected_params_suffix.append(f'{i}={params[i]}')
+        self.E_components = field.get_field_components()
         return
 
     def _contains_field(self):
@@ -94,7 +121,7 @@ class Field:
             return all(i in self.vars.keys() for i in ['Ex', 'Ey']) or all(i in self.vars.keys() for i in ['Er', 'Ez'])
         if self.dimension == 3:
             return all(i in self.vars.keys() for i in ['Ex', 'Ey', 'Ez'])
-
+        
     def get_field_components(self):
 
         if not self._contains_field():
