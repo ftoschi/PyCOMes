@@ -112,7 +112,7 @@ class Field:
                 raise InvalidArgument(
                     f"value not accepted for {i} parameter. The accepted values are {list(self.params[i])}.")
             self._selected_params_suffix.append(f'{i}={params[i]}')
-        self.E_components = field.get_field_components()
+        self.E_components = self.get_field_components()
         return
 
     def _contains_field(self):
