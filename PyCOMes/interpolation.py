@@ -188,7 +188,7 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
 
     while particle_inside:
         
-        if n_step > step_limit:
+        if n_step > step_limit - 1:
             break
         
         E = interpolate_field(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), X, Y, Ex, Ey)
