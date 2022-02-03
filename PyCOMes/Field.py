@@ -17,7 +17,6 @@ class Field:
     def __init__(self, file_name=None, skip_rows=9):
 
         self.file_name = file_name
-        self._path = os.path.dirname(self.file_name)
         self._skip_rows = skip_rows
 
         if file_name is None:
@@ -27,6 +26,7 @@ class Field:
             self.dimension = 0
             return
 
+        self._path = os.path.dirname(self.file_name)
         if not isinstance(file_name, str):
             raise InvalidArgument('field should be given as an external file.')
 
@@ -193,3 +193,34 @@ class Field:
 
         load_function = loading_function[extension]
         load_function(file_name)
+        
+    def make_dummy(self, dimension, coordinates, components, unit_space='mm', unit_field='V/cm'):
+        
+        coordinates = np.array(coordinates, dtype=np.float64)
+        components = np.array(components, dtype=np.float64)
+        
+        assert coordinates.shape[0] == dimension, f'coordinate shape {coordinates.shape[0]} and dimension {dimension} do not match'
+        assert components.shape[0] == dimension, f'components shape {components.shape[0]} and dimension {dimension} do not match'
+        
+        self.file_name = 'dummy'
+        self.params = {}
+        self.dimension = dimension
+        if dimension == 2:
+            self.vars = {'x': unit_space, 'y': unit_space, 
+                         'Ex': unit_field, 'Ey': unit_field}
+            field_tmp = pd.DataFrame({'x': np.asarray(coordinates[0], dtype=np.float64),
+                                      'y': np.asarray(coordinates[1], dtype=np.float64),
+                                      'Ex': np.asarray(components[0], dtype=np.float64),
+                                      'Ey': np.asarray(components[1], dtype=np.float64)})
+        else:
+            self.vars = {'x': unit_space, 'y': unit_space, 'z': unit_space,
+                         'Ex': unit_field, 'Ey': unit_field, 'Ez': unit_field}
+            field_tmp = pd.DataFrame({'x': np.asarray(coordinates[0], dtype=np.float64),
+                                      'y': np.asarray(coordinates[1], dtype=np.float64),
+                                      'z': np.asarray(coordinates[2], dtype=np.float64),
+                                      'Ex': np.asarray(components[0], dtype=np.float64),
+                                      'Ey': np.asarray(components[1], dtype=np.float64),
+                                      'Ez': np.asarray(components[2], dtype=np.float64)})
+        self.field = field_tmp
+        self._get_unique()
+        self.E_components = self.get_field_components()

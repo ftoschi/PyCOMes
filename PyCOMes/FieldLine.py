@@ -41,7 +41,7 @@ class FieldLine:
     
     def __call__(self, dn, theta=0., print_point=False, step_limit=None):
         
-        return self.trajectory(dn, theta=0., print_point=False, step_limit=None)
+        return self.trajectory(dn, theta=0., print_point=print_point, step_limit=step_limit)
 
     def set_edges(self, edges):
 
