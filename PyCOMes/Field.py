@@ -182,6 +182,50 @@ class Field:
         self.head = output['head']
         self.field = output['field']
         self._get_unique()
+        
+    def make_xyz(self, Xs, Ys, Zs, k=1):
+      
+      zs, ys, xs = np.meshgrid(Zs, Ys, Xs, indexing='ij')
+      self.X = Xs
+      self.Y = Ys
+      self.Z = Zs
+      
+      if(hasattr(self, "field")):
+        self.field['x'] = xs.ravel() * k
+        self.field['y'] = ys.ravel() * k
+        self.field['z'] = zs.ravel() * k
+      else:
+        self.field = pd.DataFrame({'x': xs.ravel() * k,
+                                   'y': ys.ravel() * k,
+                                   'z': zs.ravel() * k})
+      return
+        
+    def load_npy(self, file_name=None):
+    
+      if not file_name is None:
+        self.file_name = file_name
+      
+      # implemented only for 3D file map
+      self.params = None
+      self.vars = {'x': 'mm', 'y': 'mm', 'z': 'mm',
+                   'Ex': 'V/cm', 'Ey': 'V/cm', 'Ez': 'V/cm'}
+      self.dimension = 3
+      self.head = 'DUMMY'
+      field_tmp = np.load(file_name, allow_pickle=True)
+      if(hasattr(self, "field")):
+        self.field['Ex'] = field_tmp[0]
+        self.field['Ey'] = field_tmp[1]
+        self.field['Ez'] = field_tmp[2]
+      else:
+        self.field = pd.DataFrame({'Ex': field_tmp[0], 
+                                   'Ey': field_tmp[1],
+                                   'Ez': field_tmp[2]})
+      return
+        
+    def load_vti(self, file_name=None):
+      
+      print("Not implemented. Bye bye.")
+      return -1
 
     def load_file(self, file_name=None):
 
@@ -189,7 +233,9 @@ class Field:
             file_name = self.file_name
         extension = get_extension(self.file_name)
         loading_function = {FileType.TXT: self.load_txt,
-                            FileType.PICKLE: self.load_pickle}
+                            FileType.PICKLE: self.load_pickle,
+                            FileType.NPY: self.load_npy,
+                            FileType.VTI: self.load_vti}
 
         load_function = loading_function[extension]
         load_function(file_name)

@@ -9,6 +9,7 @@ class FileType(Enum):
     TXT = 0
     PICKLE = 1
     NPY = 2
+    VTI = 3
 
 
 class WrongDimension(Exception):
