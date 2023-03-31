@@ -37,6 +37,7 @@ class FieldLine:
             self.edges = np.asarray(self.edges)
         else:
             self.edges = edges
+        self.radial_edges = False
         return
     
     def __call__(self, dn, theta=0., print_point=False, step_limit=None):
@@ -50,14 +51,26 @@ class FieldLine:
             self.edges = edges[:self.dimension * 2]
         elif len(edges) < self.dimension * 2:
             self.edges[:self.dimension * 2] = edges
+        self.radial_edges = False
+            
+    def set_rz_edges(self, edges):
+      
+        assert (self.dimension == 3) and (len(edges) == 4)
+        self.edges = edges
+        self.radial_edges = True
 
     def _is_inside(self):
 
-        conditions = [self.p[0] < self.edges[0], self.p[0] > self.edges[1], self.p[1] < self.edges[2],
-                      self.p[1] > self.edges[3]]
-        if self.dimension == 3:
-            conditions.append(self.p[2] < self.edges[4])
-            conditions.append(self.p[2] > self.edges[5])
+        if(self.radial_edges):
+            conditions = [self.p[0]**2 + self.p[1]**2 < self.edges[0]**2,
+                          self.p[0]**2 + self.p[1]**2 > self.edges[1]**2,
+                          self.p[2] < self.edges[2], self.p[2] > self.edges[3]]
+        else:
+            conditions = [self.p[0] < self.edges[0], self.p[0] > self.edges[1], self.p[1] < self.edges[2],
+                          self.p[1] > self.edges[3]]
+            if self.dimension == 3:
+                conditions.append(self.p[2] < self.edges[4])
+                conditions.append(self.p[2] > self.edges[5])
         return not any(conditions)
 
     def set_initial_point(self, p0):

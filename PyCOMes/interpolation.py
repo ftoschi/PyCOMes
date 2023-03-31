@@ -153,10 +153,15 @@ def interpolate_field_3D(p, X, Y, Z, Ex, Ey, Ez):
 
 
 @jit(nopython=True, nogil=True, cache=True)
-def is_inside(p, edges):
-    conditions = np.array([p[0] < edges[0], p[0] > edges[1], p[1] < edges[2], p[1] > edges[3]], dtype=np.bool8)
-    if len(p) == 3:
-        conditions = np.append(conditions, np.asarray([p[2] < edges[4], p[2] > edges[5]], dtype=np.bool8))
+def is_inside(p, edges, radial_edges):
+    if(radial_edges):
+        conditions = np.array([p[0]**2 + p[1]**2 < edges[0]**2,
+                               p[0]**2 + p[1]**2 > edges[1]**2,
+                               p[2] < edges[2], p[2] > edges[3]], dtype=np.bool8)
+    else:
+        conditions = np.array([p[0] < edges[0], p[0] > edges[1], p[1] < edges[2], p[1] > edges[3]], dtype=np.bool8)
+        if len(p) == 3:
+            conditions = np.append(conditions, np.asarray([p[2] < edges[4], p[2] > edges[5]], dtype=np.bool8))
     return not conditions.any()
 
 
@@ -184,7 +189,7 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
     if (diff_t is None or diff_l is None or drift is None) and diffuse_on:
         raise ValueError(': no diffusion or drift speed specified, diffusion not possible.')
         
-    particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
+    particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges, False)
 
     while particle_inside:
         
@@ -230,7 +235,7 @@ def trajectory_line(p, X, Y, Ex, Ey, dn, edges, diff_t=None, diff_l=None, drift=
         if print_point:
             print(p, time)
             
-        particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges)
+        particle_inside = is_inside(np.array([np.sqrt(x_tmp[-1]**2 + y_tmp[-1]**2), z_tmp[-1]], dtype=np.float64), edges, False)
         n_step = n_step + 1
 
     return x_tmp, y_tmp, z_tmp, t_tmp
@@ -242,6 +247,7 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
     length = 0.
     time = 0.
     n_step = 0
+    radial_edges = len(edges) == 4
 
     x_tmp = np.array([p[0]], dtype=np.float64)
     y_tmp = np.array([p[1]], dtype=np.float64)
@@ -253,7 +259,7 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
     if step_limit is None:
         step_limit = np.inf
 
-    particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
+    particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges, radial_edges)
 
     while particle_inside:
         
@@ -290,7 +296,7 @@ def trajectory_line_3D(p, X, Y, Z, Ex, Ey, Ez, dn, edges, diff_t=None, diff_l=No
         if print_point:
             print(p, time)
 
-        particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges)
+        particle_inside = is_inside(np.array([x_tmp[-1], y_tmp[-1], z_tmp[-1]], dtype=np.float64), edges, radial_edges)
         n_step = n_step + 1
 
     return x_tmp, y_tmp, z_tmp, t_tmp
